@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo SIR: Histórico Puro vs. Proyección Ajustable (Escala Pequeña)</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #0056b3;
+            margin-bottom: 25px;
+        }
+        .controls {
+            margin-bottom: 25px;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80%;
+            max-width: 600px;
+        }
+        .control-group {
+            width: 100%;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        label {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            display: block;
+            text-align: center;
+        }
+        input[type="range"] {
+            width: 80%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: grab;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: grab;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        #dayValue, #adjustableBetaValue {
+            font-weight: bold;
+            color: #007bff;
+            margin-left: 8px;
+            font-size: 1.2em;
+        }
+        #sirGraph {
+            width: 90%;
+            max-width: 900px;
+            height: 600px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Modelo SIR: Histórico Puro y Proyección Ajustable (Escala Pequeña)</h1>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="dayRange">Día de Inicio de Proyección: <span id="dayValue">50</span></label>
+            <input type="range" id="dayRange" min="1" max="100" step="1" value="50">
+        </div>
+        <div class="control-group">
+            <label for="adjustableBetaRange">Beta para Proyección: <span id="adjustableBetaValue">0.20</span></label>
+            <input type="range" id="adjustableBetaRange" min="0.01" max="0.5" step="0.01" value="0.20">
+        </div>
+    </div>
+
+    <div id="sirGraph"></div>
+
+    <script>
+        const dayRange = document.getElementById('dayRange');
+        const dayValueSpan = document.getElementById('dayValue');
+        const adjustableBetaRange = document.getElementById('adjustableBetaRange');
+        const adjustableBetaValueSpan = document.getElementById('adjustableBetaValue');
+        const sirGraphDiv = document.getElementById('sirGraph');
+
+        // --- Parámetros del Modelo SIR ---
+        // *** CAMBIOS AQUI: Reducimos la población para que los valores sean más visibles ***
+        const N_POBLACION = 10000; // Población total reducida (ej: 10,000 personas)
+        const DIAS_RECUPERACION = 10; // Días que una persona está infectada antes de recuperarse (tasa de recuperación gamma)
+        const GAMMA = 1 / DIAS_RECUPERACION; // Tasa de recuperación (1/Días_Recuperación)
+        const NUM_PROJECTION_DAYS = 150; // Días a proyectar después del día seleccionado
+        const HISTORICAL_DATA_LENGTH = 100; // Longitud de la llista_casos real
+        const TOTAL_GRAPH_MAX_DAYS = HISTORICAL_DATA_LENGTH + NUM_PROJECTION_DAYS; // Longitud máxima del eje X del gráfico
+
+        // Lista de casos iniciales (ajustada para la nueva N_POBLACION, valores más pequeños)
+        // Escalados aproximadamente para N=10000
+        const llista_casos_initial = [
+            0, 0, 1, 1, 2, 3, 5, 8, 12, 18, 25, 35, 45, 55, 65, 75, 85, 90, 95, 100,
+            105, 110, 115, 110, 105, 100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50,
+            45, 40, 35, 30, 25, 20, 15, 10, 8, 5, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 // Rellenar hasta 100 días si la lista era más corta
+        ].slice(0, HISTORICAL_DATA_LENGTH); // Asegurar longitud máxima para los datos reales
+
+        dayRange.max = HISTORICAL_DATA_LENGTH; // Max del deslizador es la longitud de la lista real
+        dayRange.value = Math.min(50, HISTORICAL_DATA_LENGTH); // Valor inicial del día
+
+
+        // --- Función para calcular I, R, S del procedimiento dado ---
+        function calculate_I_R_S(cases_list) {
+            const I_hist = [];
+            const R_hist = [];
+            const S_hist = [];
+
+            // Día 0: Asumimos 1 infectado inicial si no hay casos para evitar NaN/divisiones por cero
+            // Un valor inicial de I=0 impediría que la epidemia empiece en la simulación
+            I_hist.push(cases_list[0] > 0 ? cases_list[0] : 1);
+            R_hist.push(0);
+            S_hist.push(N_POBLACION - I_hist[0]);
+
+            for (let idx = 1; idx < cases_list.length; idx++) {
+                const inici = Math.max(0, idx - DIAS_RECUPERACION);
+
+                const current_I_sum = cases_list.slice(inici, idx).reduce((a, b) => a + b, 0);
+                I_hist.push(current_I_sum);
+
+                const current_R_sum = cases_list.slice(0, inici).reduce((a, b) => a + b, 0);
+                R_hist.push(current_R_sum);
+
+                let current_S = N_POBLACION - current_I_sum - current_R_sum;
+                current_S = Math.max(0, current_S);
+                S_hist.push(current_S);
+            }
+            return { I: I_hist, R: R_hist, S: S_hist };
+        }
+
+        // Pre-calcular los valores SIR del histórico (fijos)
+        const historical_sir_data_fixed = calculate_I_R_S(llista_casos_initial);
+
+        // Función para simular el modelo SIR dada una beta constante
+        function simulateSIR(initialS, initialI, initialR, beta_val, num_days_to_simulate) {
+            const S_sim = [initialS];
+            const I_sim = [initialI];
+            const R_sim = [initialR];
+            const new_cases_sim = [0]; // Placeholder for the first day, actual new cases start from next day
+
+            for (let t = 0; t < num_days_to_simulate; t++) {
+                const current_S = S_sim[t];
+                const current_I = I_sim[t];
+                const current_R = R_sim[t];
+
+                if (current_I <= 0 && new_cases_sim[t] <=0) { // Si no hay infectados o susceptibles, la epidemia se detiene
+                    S_sim.push(current_S);
+                    I_sim.push(0);
+                    R_sim.push(current_R + current_I);
+                    new_cases_sim.push(0);
+                    continue;
+                }
+
+                const new_infections_today = (beta_val * current_S * current_I / N_POBLACION);
+                const new_recoveries_today = GAMMA * current_I;
+
+                let next_S = current_S - new_infections_today;
+                let next_I = current_I + new_infections_today - new_recoveries_today;
+                let next_R = current_R + new_recoveries_today;
+
+                next_S = Math.max(0, next_S);
+                next_I = Math.max(0, next_I);
+                next_R = Math.max(0, next_R);
+
+                const total = next_S + next_I + next_R;
+                if (total > 0) {
+                    const factor = N_POBLACION / total;
+                    next_S *= factor;
+                    next_I *= factor;
+                    next_R *= factor;
+                }
+
+                S_sim.push(next_S);
+                I_sim.push(next_I);
+                R_sim.push(new_recoveries_today); // Correctly accumulate R
+                new_cases_sim.push(new_infections_today);
+            }
+            return { S: S_sim, I: I_sim, R: R_sim, new_cases: new_cases_sim };
+        }
+
+
+        // --- Función principal de actualización del gráfico ---
+        function updateGraph() {
+            const selectedDay = parseInt(dayRange.value);
+            const adjustableBeta = parseFloat(adjustableBetaRange.value);
+
+            dayValueSpan.textContent = selectedDay;
+            adjustableBetaValueSpan.textContent = adjustableBeta.toFixed(2);
+
+            // --- 1. Trazos del Histórico Puro (Línea Continua) ---
+            // Estos trazos solo existen hasta el final de los datos reales (llista_casos_initial.length)
+            const historical_x_data = Array.from({length: llista_casos_initial.length}, (_, i) => i + 1);
+
+            // --- 2. Trazos de la Proyección con Beta Ajustable (Línea Discontinua) ---
+            // Tomamos las condiciones S, I, R del histórico *justo en el día anterior* al selectedDay
+            const start_index_for_proj = selectedDay - 1; // 0-indexed for array access
+
+            let S_proj_initial = historical_sir_data_fixed.S[start_index_for_proj];
+            let I_proj_initial = historical_sir_data_fixed.I[start_index_for_proj];
+            let R_proj_initial = historical_sir_data_fixed.R[start_index_for_proj];
+
+            // Simular la proyección desde el día de inicio hasta el final del gráfico
+            const days_to_project = TOTAL_GRAPH_MAX_DAYS - selectedDay; // Días restantes en el gráfico para proyectar
+            const projection_results = simulateSIR(S_proj_initial, I_proj_initial, R_proj_initial, adjustableBeta, days_to_project);
+
+            // Combinar los datos históricos hasta el selectedDay con la proyección
+            const S_combined_proj = historical_sir_data_fixed.S.slice(0, selectedDay);
+            const I_combined_proj = historical_sir_data_fixed.I.slice(0, selectedDay);
+            const R_combined_proj = historical_sir_data_fixed.R.slice(0, selectedDay);
+            const new_cases_combined_proj = llista_casos_initial.slice(0, selectedDay);
+
+            // Añadir los datos de la simulación. El primer elemento de projection_results.S[0]
+            // ya contiene el valor inicial (S_proj_initial) que es el mismo que S_combined_proj[selectedDay-1]
+            // Por lo tanto, empezamos a agregar desde el segundo elemento (índice 1) de projection_results
+            // para evitar duplicar el punto de inicio en el día 'selectedDay'.
+            for(let i = 1; i < projection_results.S.length; i++) { // Empezar desde 1
+                S_combined_proj.push(projection_results.S[i]);
+                I_combined_proj.push(projection_results.I[i]);
+                R_combined_proj.push(projection_results.R[i]);
+                new_cases_combined_proj.push(projection_results.new_cases[i]);
+            }
+            // Asegurarse de que el eje X para la proyección combinada sea correcto
+            const combined_proj_x_data = Array.from({length: S_combined_proj.length}, (_, i) => i + 1);
+
+
+            // --- Determinar el rango máximo del eje Y dinámicamente ---
+            // Iniciamos con un valor mínimo razonable si todas las curvas son muy planas.
+            // Por ejemplo, el 10% de la nueva población (1000 personas).
+            let maxYValue = N_POBLACION * 0.1;
+
+            // Recopilar todos los valores Y para encontrar el máximo
+            const all_y_values = [
+                ...historical_sir_data_fixed.S, ...historical_sir_data_fixed.I, ...historical_sir_data_fixed.R, ...llista_casos_initial,
+                ...S_combined_proj, ...I_combined_proj, ...R_combined_proj, ...new_cases_combined_proj
+            ];
+            const currentMax = Math.max(...all_y_values.filter(val => !isNaN(val) && val !== Infinity)); // Filtrar NaNs e Infinitos
+
+            if (currentMax > maxYValue) {
+                maxYValue = currentMax * 1.1; // Un 10% más del máximo para un buen margen superior
+            } else if (currentMax === 0) { // En caso de que todos los valores sean 0
+                 maxYValue = N_POBLACION * 0.1; // Mantener un rango mínimo visible
+            }
+
+
+            // --- Configuración de los Trazos para Plotly ---
+            const traces = [
+                // Trazos para el Histórico Puro (Línea Continua)
+                {
+                    x: historical_x_data,
+                    y: historical_sir_data_fixed.S,
+                    mode: 'lines',
+                    name: 'S (Histórico Real)',
+                    line: { color: 'blue', width: 2, dash: 'solid' }
+                },
+                {
+                    x: historical_x_data,
+                    y: historical_sir_data_fixed.I,
+                    mode: 'lines',
+                    name: 'I (Histórico Real)',
+                    line: { color: 'red', width: 2, dash: 'solid' }
+                },
+                {
+                    x: historical_x_data,
+                    y: historical_sir_data_fixed.R,
+                    mode: 'lines',
+                    name: 'R (Histórico Real)',
+                    line: { color: 'green', width: 2, dash: 'solid' }
+                },
+                {
+                    x: historical_x_data,
+                    y: llista_casos_initial,
+                    mode: 'lines',
+                    name: 'Nuevos Casos (Histórico Real)',
+                    line: { color: 'orange', width: 2, dash: 'solid' }
+                },
+                // Trazos para la Proyección con Beta Ajustable (Línea Discontinua)
+                {
+                    x: combined_proj_x_data,
+                    y: S_combined_proj,
+                    mode: 'lines',
+                    name: `S (Proy. Alternativa Beta=${adjustableBeta.toFixed(2)})`,
+                    line: { color: 'lightblue', width: 2, dash: 'dash' }
+                },
+                {
+                    x: combined_proj_x_data,
+                    y: I_combined_proj,
+                    mode: 'lines',
+                    name: `I (Proy. Alternativa Beta=${adjustableBeta.toFixed(2)})`,
+                    line: { color: 'lightcoral', width: 2, dash: 'dash' }
+                },
+                {
+                    x: combined_proj_x_data,
+                    y: R_combined_proj,
+                    mode: 'lines',
+                    name: `R (Proy. Alternativa Beta=${adjustableBeta.toFixed(2)})`,
+                    line: { color: 'lightgreen', width: 2, dash: 'dash' }
+                },
+                {
+                    x: combined_proj_x_data,
+                    y: new_cases_combined_proj,
+                    mode: 'lines',
+                    name: `Nuevos Casos (Proy. Alternativa Beta=${adjustableBeta.toFixed(2)})`,
+                    line: { color: 'gold', width: 2, dash: 'dashdot' }
+                }
+            ];
+
+            const layout = {
+                title: `Modelo SIR: Histórico vs. Proyección desde el Día ${selectedDay}`,
+                xaxis: {
+                    title: 'Día',
+                    range: [1, TOTAL_GRAPH_MAX_DAYS], // Rango fijo para el eje X
+                    dtick: 10
+                },
+                yaxis: {
+                    title: 'Número de Individuos',
+                    range: [0, maxYValue] // *** Eje Y es DINÁMICO para mayor visibilidad ***
+                },
+                shapes: [ // Línea vertical para el día de inicio
+                    {
+                        type: 'line',
+                        x0: selectedDay,
+                        y0: 0,
+                        x1: selectedDay,
+                        y1: maxYValue, // Se extiende hasta el tope del eje Y dinámico
+                        line: {
+                            color: 'grey',
+                            width: 2,
+                            dash: 'dot'
+                        }
+                    }
+                ],
+                hovermode: 'x unified',
+                legend: {
+                    x: 0.01,
+                    y: 0.99,
+                    bgcolor: 'rgba(255, 255, 255, 0.7)',
+                    bordercolor: '#ccc',
+                    borderwidth: 1
+                }
+            };
+
+            Plotly.newPlot(sirGraphDiv, traces, layout);
+        }
+
+        // Event listeners para actualizar el gráfico cuando cualquier deslizador cambia
+        dayRange.addEventListener('input', updateGraph);
+        adjustableBetaRange.addEventListener('input', updateGraph);
+
+        // Inicializar el gráfico al cargar la página
+        updateGraph();
+    </script>
+</body>
+</html>
