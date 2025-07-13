@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Predicción COVID-19 España: Función 'estimacio_pandemia' Ajustable</title>
+    <title>Predicció COVID-19 Espanya: Funció 'estimació_pandèmia' Ajustable</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
@@ -99,16 +99,16 @@
     </style>
 </head>
 <body>
-    <h1>Predicción de Infectados en la Pandemia de COVID-19 (España)</h1>
-    <h2>Comparación entre el histórico real y una evolución hipotética</h2>
+    <h1>Predicció d'Infectats en la Pandèmia de COVID-19 (Espanya)</h1>
+    <h2>Comparació entre l'històric real i una evolució hipotètica</h2>
 
     <div class="controls">
         <div class="control-group">
-            <label for="dayRange">Día de Inicio de Proyección (Día 0 = 25 Feb 2020): <span id="dayValue"></span></label>
+            <label for="dayRange">Dia d'Inici de Projecció (Dia 0 = 25 Feb 2020): <span id="dayValue"></span></label>
             <input type="range" id="dayRange" min="0" step="1" value="150">
         </div>
         <div class="control-group">
-            <label for="betaRange">Valor de Beta ($\beta$) para Proyección: <span id="betaValue"></span></label>
+            <label for="betaRange">Valor de Beta per a la Projecció: <span id="betaValue"></span></label>
             <input type="range" id="betaRange" min="0.01" max="0.5" step="0.001" value="0.108">
         </div>
     </div>
@@ -116,11 +116,12 @@
     <div id="sirGraph"></div>
 
     <script>
-        const dayRange = document.getElementById('dayRange');
-        const dayValueSpan = document.getElementById('dayValue');
-        const betaRange = document.getElementById('betaRange');
-        const betaValueSpan = document.getElementById('betaValue');
-        const sirGraphDiv = document.getElementById('sirGraph');
+        // Variables per als elements del DOM, ara amb noms en català
+        const rangDia = document.getElementById('dayRange');
+        const valorDiaSpan = document.getElementById('dayValue');
+        const rangBeta = document.getElementById('betaRange');
+        const valorBetaSpan = document.getElementById('betaValue');
+        const graficSIRDiv = document.getElementById('sirGraph');
 
         const llista_casos_hist = [4, 7, 2, 17, 13, 39, 35, 45, 57, 37, 141, 100, 173, 400, 622, 582, 1478, 1478, 1159, 1407, 2144, 1806, 2162, 4053, 2447, 4964, 3394, 6368, 4749, 9630, 8271, 7933, 7516, 6875, 7846, 7967, 8195, 7947, 7134, 6969, 5478, 5029, 5267, 6278, 5002, 5051, 4754, 3804, 3268, 2442, 5103, 7304, 5891, 887, 6948, 1536, 3968, 4211, 4635, 2915, 1729, 1831, 1308, 2144, 518, 1781, 1366, 884, 545, 1318, 996, 1122, 1410, 721, 772, 3086, 594, 661, 849, 643, 515, 454, 454, 431, 518, 482, 1787, 466, 482, 859, 824, 824, 658, 664, 251, 159, 294, 394, 334, 318, 332, 240, 167, 249, 314, 427, 502, 396, 323, 181, 219, 355, 585, 307, 363, 334, 232, 248, 334, 400, 419, 564, 301, 200, 301, 388, 444, 442, 415, 415, 415, 341, 383, 543, 852, 682, 682, 682, 666, 875, 1361, 1400, 1527, 1527, 1527, 1358, 1357, 2615, 2255, 2120, 2120, 2120, 1828, 2031, 2789, 3092, 2844, 2844, 2844, 5760, 2953, 4088, 4507, 2873, 2873, 2873, 3632, 3172, 7550, 5479, 5423, 5423, 5423, 5114, 6671, 7039, 8148, 6461, 6461, 6461, 7117, 7296, 9658, 9779, 7857, 7857, 7857, 8115, 8581, 8959, 10476, 8853, 8853, 8853, 8964, 8866, 10764, 12183, 9135, 9135, 9135, 9437, 11193, 11291, 14389, 10476, 10476, 10476, 10799, 11289, 10653, 12272, 10595, 10595, 10595, 10461, 10461, 9419, 11325, 7827, 7827, 7827, 11998, 10491, 12423, 12788, 9285, 9285, 9285, 7118, 11970, 13318, 15186, 12630, 12630, 12630, 13873, 16973, 20986, 19851, 17396, 17396, 17396, 18418, 19765, 23580, 25595, 18340, 18340, 18340, 18669, 25042, 21908, 22516, 17462, 17462, 17462, 18246, 18246, 19511, 21371, 12758, 12758, 12758, 13159, 15318, 16233, 15156, 8629, 8629, 8629, 12228, 10222, 12289, 10853, 6660, 6660, 6660, 8257, 9331, 10127, 8745, 5894, 5894, 5894, 4886, 4886, 7955, 10519, 7103, 7103, 7103, 10328, 11078, 12131, 11815, 7338, 7338, 7338, 10654, 12386, 12662, 6116, 6116, 6116, 6116, 14089, 16716, 18047, 7645, 7645, 7645, 7645, 23700, 21180, 21180, 25456, 20474, 20474, 20474, 25438, 38869, 35878, 40197, 28096, 28096, 28096, 34291, 41576, 44357, 42885, 31274, 31274, 31274, 36435, 40285, 34899, 38118, 26562, 26562, 26562, 29064, 31596, 29960, 28565, 15698, 15698, 15698, 16402, 18114, 17853, 14581, 10084, 10084, 10084, 10057, 10829, 14515, 11435, 6950, 6950, 6950, 7461, 9212, 9568, 8341, 5326, 5326, 5326, 3068, 3068, 6037, 6654, 3986, 3986, 3986, 4012, 7119, 6255, 5348, 3786, 3786, 3786, 4962, 6092, 6216, 4118, 4118, 4118, 4118, 5516, 6710, 6710, 7586, 5167, 5167, 5167, 4994, 8534, 7041, 4786, 4786, 5180, 5180, 6623, 8788, 9901, 10875, 7581, 7581, 7581, 6292, 10474, 9663, 10598, 7024, 7024, 7024, 8859, 8859, 10814, 11731, 6617, 6617, 6617, 7665, 8665, 10143, 9135, 5451, 5451, 5451, 4515, 6317, 7960, 8186, 4661, 4661, 4661, 4941, 6418, 5701, 6347, 3687, 3687, 3687, 3988, 6080, 5733, 4792, 3689, 3689, 3689, 5359, 5007, 5290, 5482, 3244, 3244, 3244, 4388, 4984, 5250, 4969, 3181, 3181, 3181, 3504, 4427, 14004, 4142, 2722, 2722, 2722, 3432, 3832, 4197, 4214, 2403, 2403, 2403, 4040, 4341, 4507, 4924, 3393, 3393, 3393, 7091, 9227, 12345, 12563, 10869, 10869, 10869, 14137, 17384, 17317, 21879, 11311, 11311, 11311, 43960, 26390, 27688, 31060, 20543, 20543, 20543, 27286, 30587, 29535, 31171, 20542, 20542, 20542, 26399, 27149, 26689, 24753, 18646, 18646, 18646, 20327, 21874, 21387, 21561, 13213, 13213, 13213, 15680, 17023, 17410, 15657, 8575, 8575, 8575, 14336, 11956, 12445, 12450, 7966, 7966, 7966, 10072, 10781, 7115, 9489, 5163, 5163, 5163, 7767, 6818, 9561, 6311, 3119, 3119, 3119, 5528, 5618, 4763, 4440, 2601, 2601, 2601, 3261, 3723, 4075, 3222, 1996, 1996, 1996, 2450, 2840, 3031, 2746, 1680, 1680, 1680, 2290, 2761, 2400, 2037, 1424, 1424, 1424, 1801, 2303, 1807, 2309, 1276, 1276, 1276, 1379, 1379, 1932, 2248, 1497, 1497, 1497, 1889, 2528, 1881, 2556, 1495, 1495, 1495, 1926, 2532, 2212, 2261, 1455, 1455, 1455, 1455, 2287, 3291, 3093, 2139, 2139, 2139, 3230, 3230, 4286, 4353, 3266, 3266, 3266, 4091, 6667, 6315, 6636, 5292, 5292, 5292, 6777, 8527, 9258, 9912, 7637, 7637, 7637, 10261, 10536, 14500, 13738, 10952, 10952, 10952, 10952, 13206, 13206, 17095, 16601, 16601, 16601, 26136, 27140, 28900, 33359, 26568, 26568, 26568, 49823, 60041, 72912, 53655, 53655, 53655, 53655, 99671, 100760, 161688, 93192, 93192, 93192, 93192, 117775, 137180, 121220, 121220, 97465, 97465, 97465, 134942, 179125, 159161, 162508, 110489, 110489, 110489, 94472, 157941, 157447, 141095, 101811, 101811, 101811, 114877, 133553, 130888, 118922, 60708, 60708, 60708, 77873, 86222, 74368, 48939, 48939, 48939, 48939, 43831, 62839, 53055, 49004, 22902, 22902, 22902, 34380, 37108, 34213, 30615, 16259, 16259, 16259, 22193, 33912, 35892, 27527, 14640, 14640, 14640, 14640, 18803, 23140, 22400, 11999, 11999, 11999, 23149, 21936, 22615, 19849];
         const S_hist = [47370000, 47369996, 47369989, 47369987, 47369970, 47369957, 47369918, 47369883, 47369838, 47369781, 47369744, 47369603, 47369503, 47369330, 47368930, 47368308, 47367726, 47366248, 47364770, 47363611, 47362204, 47360060, 47358254, 47356092, 47352039, 47349592, 47344628, 47341234, 47334866, 47330117, 47320487, 47312216, 47304283, 47296767, 47289892, 47282046, 47274079, 47265884, 47257937, 47250803, 47243834, 47238356, 47233327, 47228060, 47221782, 47216780, 47211729, 47206975, 47203171, 47199903, 47197461, 47192358, 47185054, 47179163, 47178276, 47171328, 47169792, 47165824, 47161613, 47156978, 47154063, 47152334, 47150503, 47149195, 47147051, 47146533, 47144752, 47143386, 47142502, 47141957, 47140639, 47139643, 47138521, 47137111, 47136390, 47135618, 47132532, 47131938, 47131277, 47130428, 47129785, 47129270, 47128816, 47128362, 47127931, 47127413, 47126931, 47125144, 47124678, 47124196, 47123337, 47122513, 47121689, 47121031, 47120367, 47120116, 47119957, 47119663, 47119269, 47118935, 47118617, 47118285, 47118045, 47117878, 47117629, 47117315, 47116888, 47116386, 47115990, 47115667, 47115486, 47115267, 47114912, 47114327, 47114020, 47113657, 47113323, 47113091, 47112843, 47112509, 47112109, 47111690, 47111126, 47110825, 47110625, 47110324, 47109936, 47109492, 47109050, 47108635, 47108220, 47107805, 47107464, 47107081, 47106538, 47105686, 47105004, 47104322, 47103640, 47102974, 47102099, 47100738, 47099338, 47097811, 47096284, 47094757, 47093399, 47092042, 47089427, 47087172, 47085052, 47082932, 47080812, 47078984, 47076953, 47074164, 47071072, 47068228, 47065384, 47062540, 47056780, 47053827, 47049739, 47045232, 47042359, 47039486, 47036613, 47032981, 47029809, 47022259, 47016780, 47011357, 47005934, 47000511, 46995397, 46988726, 46981687, 46973539, 46967078, 46960617, 46954156, 46947039, 46939743, 46930085, 46920306, 46912449, 46904592, 46896735, 46888620, 46880039, 46871080, 46860604, 46851751, 46842898, 46834045, 46825081, 46816215, 46805451, 46793268, 46784133, 46774998, 46765863, 46756426, 46745233, 46733942, 46719553, 46709077, 46698601, 46688125, 46677326, 46666037, 46655384, 46643112, 46632517, 46621922, 46611327, 46600866, 46590405, 46580986, 46569661, 46561834, 46554007, 46546180, 46534182, 46523691, 46511268, 46498480, 46489195, 46479910, 46470625, 46463507, 46451537, 46438219, 46423033, 46410403, 46397773, 46385143, 46371270, 46354297, 46333311, 46313460, 46296064, 46278668, 46261272, 46242854, 46223089, 46199509, 46173914, 46155574, 46137234, 46118894, 46100225, 46075183, 46053275, 46030759, 46013297, 45995835, 45978373, 45960127, 45941881, 45922370, 45900999, 45888241, 45875483, 45862725, 45849566, 45834248, 45818015, 45802859, 45794230, 45785601, 45776972, 45764744, 45754522, 45742233, 45731380, 45724720, 45718060, 45711400, 45703143, 45693812, 45683685, 45674940, 45669046, 45663152, 45657258, 45652372, 45647486, 45639531, 45629012, 45621909, 45614806, 45607703, 45597375, 45586297, 45574166, 45562351, 45555013, 45547675, 45540337, 45529683, 45517297, 45504635, 45498519, 45492403, 45486287, 45480171, 45466082, 45449366, 45431319, 45423674, 45416029, 45408384, 45400739, 45377039, 45355859, 45334679, 45309223, 45288749, 45268275, 45247801, 45222363, 45183494, 45147616, 45107419, 45079323, 45051227, 45023131, 44988840, 44947264, 44902907, 44860022, 44828748, 44797474, 44766200, 44729765, 44689480, 44654581, 44616463, 44589901, 44563339, 44536777, 44507713, 44476117, 44446157, 44417592, 44401894, 44386196, 44370498, 44354096, 44335982, 44318129, 44303548, 44293464, 44283380, 44273296, 44263239, 44252410, 44237895, 44226460, 44219510, 44212560, 44205610, 44198149, 44188937, 44179369, 44171028, 44165702, 44160376, 44155050, 44151982, 44148914, 44142877, 44136223, 44132237, 44128251, 44124265, 44120253, 44113134, 44106879, 44101531, 44097745, 44093959, 44090173, 44085211, 44079119, 44072903, 44068785, 44064667, 44060549, 44056431, 44050915, 44044205, 44037495, 44029909, 44024742, 44019575, 44014408, 44009414, 44000880, 43993839, 43989053, 43984267, 43979087, 43973907, 43967284, 43958496, 43948595, 43937720, 43930139, 43922558, 43914977, 43908685, 43898211, 43888548, 43877950, 43870926, 43863902, 43856878, 43848019, 43839160, 43828346, 43816615, 43809998, 43803381, 43796764, 43789099, 43780434, 43770291, 43761156, 43755705, 43750254, 43744803, 43740288, 43733971, 43726011, 43717825, 43713164, 43708503, 43703842, 43698901, 43692483, 43686782, 43680435, 43676748, 43673061, 43669374, 43665386, 43659306, 43653573, 43648781, 43645092, 43641403, 43637714, 43632355, 43627348, 43622058, 43616576, 43613332, 43610088, 43606844, 43602456, 43597472, 43592222, 43587253, 43584072, 43580891, 43577710, 43574206, 43569779, 43555775, 43551633, 43548911, 43546189, 43543467, 43540035, 43536203, 43532006, 43527792, 43525389, 43522986, 43520583, 43516543, 43512202, 43507695, 43502771, 43499378, 43495985, 43492592, 43485501, 43476274, 43463929, 43451366, 43440497, 43429628, 43418759, 43404622, 43387238, 43369921, 43348042, 43336731, 43325420, 43314109, 43270149, 43243759, 43216071, 43185011, 43164468, 43143925, 43123382, 43096096, 43065509, 43035974, 43004803, 42984261, 42963719, 42943177, 42916778, 42889629, 42862940, 42838187, 42819541, 42800895, 42782249, 42761922, 42740048, 42718661, 42697100, 42683887, 42670674, 42657461, 42641781, 42624758, 42607348, 42591691, 42583116, 42574541, 42565966, 42551630, 42539674, 42527229, 42514779, 42506813, 42498847, 42490881, 42480809, 42470028, 42462913, 42453424, 42448261, 42443098, 42437935, 42430168, 42423350, 42413789, 42407478, 42404359, 42401240, 42398121, 42392593, 42386975, 42382212, 42377772, 42375171, 42372570, 42369969, 42366708, 42362985, 42358910, 42355688, 42353692, 42351696, 42349700, 42347250, 42344410, 42341379, 42338633, 42336953, 42335273, 42333593, 42331303, 42328542, 42326142, 42324105, 42322681, 42321257, 42319833, 42318032, 42315729, 42313922, 42311613, 42310337, 42309061, 42307785, 42306406, 42305027, 42303095, 42300847, 42299350, 42297853, 42296356, 42294467, 42291939, 42290058, 42287502, 42286007, 42284512, 42283017, 42281091, 42278559, 42276347, 42274086, 42272631, 42271176, 42269721, 42268266, 42265979, 42262688, 42259595, 42257456, 42255317, 42253178, 42249948, 42246718, 42242432, 42238079, 42234813, 42231547, 42228281, 42224190, 42217523, 42211208, 42204572, 42199280, 42193988, 42188696, 42181919, 42173392, 42164134, 42154222, 42146585, 42138948, 42131311, 42121050, 42110514, 42096014, 42082276, 42071324, 42060372, 42049420, 42038468, 42025262, 42012056, 41994961, 41978360, 41961759, 41945158, 41919022, 41891882, 41862982, 41829623, 41803055, 41776487, 41749919, 41700096, 41640055, 41567143, 41513488, 41459833, 41406178, 41352523, 41252852, 41152092, 40990404, 40897212, 40804020, 40710828, 40617636, 40499861, 40362681, 40241461, 40120241, 40022776, 39925311, 39827846, 39692904, 39513779, 39354618, 39192110, 39081621, 38971132, 38860643, 38766171, 38608230, 38450783, 38309688, 38207877, 38106066, 38004255, 37889378, 37755825, 37624937, 37506015, 37445307, 37384599, 37323891, 37246018, 37159796, 37085428, 37036489, 36987550, 36938611, 36889672, 36845841, 36783002, 36729947, 36680943, 36658041, 36635139, 36612237, 36577857, 36540749, 36506536, 36475921, 36459662, 36443403, 36427144, 36404951, 36371039, 36335147, 36307620, 36292980, 36278340, 36263700, 36249060, 36230257, 36207117, 36184717, 36172718, 36160719, 36148720, 36125571, 36103635, 36081020];
@@ -129,205 +130,193 @@
         const N_POBLACION = 47370000;
         const DIAS_RECUPERACION = 10;
 
+        const TOTAL_DIES_GRAFIC = llista_casos_hist.length; // Longitud total de les dades històriques
 
-        const TOTAL_GRAPH_DAYS = llista_casos_hist.length; // Longitud total de los datos históricos
+        // Ajustar el rang màxim del lliscador de dies dinàmicament
+        rangDia.max = TOTAL_DIES_GRAFIC > 0 ? TOTAL_DIES_GRAFIC - 1 : 0;
+        rangDia.value = Math.min(rangDia.max, 150); // Valor inicial raonable
 
-        // Ajustar el rango máximo del deslizador de días dinámicamente
-        // El último día de inicio posible es el penúltimo día de datos (para tener al menos 1 día de proyección)
-        dayRange.max = TOTAL_GRAPH_DAYS > 0 ? TOTAL_GRAPH_DAYS - 1 : 0;
-        dayRange.value = Math.min(dayRange.max, 150); // Valor inicial razonable, ej. el día 150 o el máximo posible
-
-        // --- Función JavaScript que replica *exactamente* tu `estimacio_pandemia` de Python ---
-        function estimacion_pandemia_js(beta_val, dia_inici_idx) { // dia_inici_idx es el índice (0-based)
-            // Asegurarse de que el día de inicio sea válido
-            if (dia_inici_idx < 0 || dia_inici_idx >= TOTAL_GRAPH_DAYS) {
-                console.error("Día de inicio fuera de rango.");
-                return { S: [], I: [], R: [], new_cases: [] };
+        // --- Funció JavaScript que replica *exactament* la teva `estimacio_pandemia` de Python ---
+        function estimacio_pandemia_js(beta_val, dia_inici_idx) { // dia_inici_idx és l'índex (base 0)
+            // Assegurar-se que el dia d'inici sigui vàlid
+            if (dia_inici_idx < 0 || dia_inici_idx >= TOTAL_DIES_GRAFIC) {
+                console.error("Dia d'inici fora de rang.");
+                return { S: [], I: [], R: [], nous_casos: [] };
             }
 
-            // Datos hasta el día de inicio (incluido)
-            const infectats_dia_actual = [...llista_casos_hist.slice(0, dia_inici_idx + 1)];
-            const susceptibles_actual = [...S_hist.slice(0, dia_inici_idx + 1)];
-            const infectats_actual = [...I_hist.slice(0, dia_inici_idx + 1)];
-            const recuperados_actual = [...R_hist.slice(0, dia_inici_idx + 1)];
+            // Dades fins al dia d'inici (inclòs)
+            const casos_nous_diaris_proj = [...llista_casos_hist.slice(0, dia_inici_idx + 1)];
+            const susceptibles_proj = [...S_hist.slice(0, dia_inici_idx + 1)];
+            const infectats_proj = [...I_hist.slice(0, dia_inici_idx + 1)];
+            const recuperats_proj = [...R_hist.slice(0, dia_inici_idx + 1)];
 
-            // Simulación para los días restantes, desde el día de inicio + 1
-            for (let i = dia_inici_idx + 1; i < TOTAL_GRAPH_DAYS; i++) {
-                // Últimos valores disponibles para calcular el siguiente paso
-                const prev_S = susceptibles_actual[susceptibles_actual.length - 1];
-                const prev_I = infectats_actual[infectats_actual.length - 1];
-                const prev_R = recuperados_actual[recuperados_actual.length - 1];
+            // Simulació per als dies restants, des del dia d'inici + 1
+            for (let i = dia_inici_idx + 1; i < TOTAL_DIES_GRAFIC; i++) {
+                // Últims valors disponibles per calcular el següent pas
+                const prev_S = susceptibles_proj[susceptibles_proj.length - 1];
+                const prev_I = infectats_proj[infectats_proj.length - 1];
+                const prev_R = recuperats_proj[recuperats_proj.length - 1];
 
-                // Cálculo de nuevos infectados (paso de S a I) para este día
-                // Tu fórmula en Python: llista_casos[n] = beta * S[n] * I[n] / 47370000
-                let new_infections_today;
-                if (prev_S <= 0 || prev_I <= 0) { // Si no hay susceptibles o infectados, no hay nuevas infecciones
-                    new_infections_today = 0;
+                // Càlcul de noves infeccions (pas de S a I) per a aquest dia
+                let nous_infectats_avui;
+                if (prev_S <= 0 || prev_I <= 0) {
+                    nous_infectats_avui = 0;
                 } else {
-                    new_infections_today = (beta_val * prev_S * prev_I / N_POBLACION);
+                    nous_infectats_avui = (beta_val * prev_S * prev_I / N_POBLACION);
                 }
-                infectats_dia_actual.push(new_infections_today);
+                casos_nous_diaris_proj.push(nous_infectats_avui);
 
-                // Cálculo de I (Infectados activos) y R (Recuperados)
-                // Tu lógica en Python: I.append(sum(llista_casos[inici:idx]))
-                // R.append(sum(llista_casos[:inici]))
-                // donde 'inici' es 'max(0, idx - 10)'
-                const recovery_start_idx = Math.max(0, infectats_dia_actual.length - DIAS_RECUPERACION);
+                // Càlcul d'I (Infectats actius) i R (Recuperats)
+                const inici_recuperacio_idx = Math.max(0, casos_nous_diaris_proj.length - DIAS_RECUPERACION);
 
-                const current_I_sum = infectats_dia_actual.slice(recovery_start_idx, infectats_dia_actual.length).reduce((a, b) => a + b, 0);
-                infectats_actual.push(current_I_sum);
+                const current_I_sum = casos_nous_diaris_proj.slice(inici_recuperacio_idx, casos_nous_diaris_proj.length).reduce((a, b) => a + b, 0);
+                infectats_proj.push(current_I_sum);
 
-                const current_R_sum = infectats_dia_actual.slice(0, recovery_start_idx).reduce((a, b) => a + b, 0);
-                recuperados_actual.push(current_R_sum);
+                const current_R_sum = casos_nous_diaris_proj.slice(0, inici_recuperacio_idx).reduce((a, b) => a + b, 0);
+                recuperats_proj.push(current_R_sum);
 
-                // Cálculo de S (Susceptibles)
-                // Tu lógica en Python: S = [47370000 - i - r for i, r in zip(I, R)]
+                // Càlcul de S (Susceptibles)
                 let current_S = N_POBLACION - current_I_sum - current_R_sum;
-                current_S = Math.max(0, current_S); // Asegurarse de que S no sea negativo
-                susceptibles_actual.push(current_S);
+                current_S = Math.max(0, current_S); // Assegurar que S no sigui negatiu
+                susceptibles_proj.push(current_S);
 
-                // Si los infectados bajan mucho, asumimos que la pandemia se ha extinguido en la proyección
+                // Si els infectats baixen molt, assumim que la pandèmia s'ha extingit en la projecció
                 if (current_I_sum < 0.1 && i > dia_inici_idx + DIAS_RECUPERACION) {
-                    // Rellenar el resto de los días con valores estables de final de epidemia
-                    for (let j = i + 1; j < TOTAL_GRAPH_DAYS; j++) {
-                        infectats_dia_actual.push(0);
-                        infectats_actual.push(0);
-                        recuperados_actual.push(N_POBLACION - susceptibles_actual[susceptibles_actual.length - 1]); // El resto se recupera o es inmune
-                        susceptibles_actual.push(susceptibles_actual[susceptibles_actual.length - 1]); // S se mantiene
+                    // Omplir la resta dels dies amb valors estables de final d'epidèmia
+                    for (let j = i + 1; j < TOTAL_DIES_GRAFIC; j++) {
+                        casos_nous_diaris_proj.push(0);
+                        infectats_proj.push(0);
+                        recuperats_proj.push(N_POBLACION - susceptibles_proj[susceptibles_proj.length - 1]);
+                        susceptibles_proj.push(susceptibles_proj[susceptibles_proj.length - 1]);
                     }
                     break;
                 }
             }
 
             return {
-                S: susceptibles_actual,
-                I: infectats_actual,
-                R: recuperados_actual,
-                new_cases: infectats_dia_actual
+                S: susceptibles_proj,
+                I: infectats_proj,
+                R: recuperats_proj,
+                nous_casos: casos_nous_diaris_proj
             };
         }
 
-        // --- Función principal de actualización del gráfico ---
-        function updateGraph() {
-            const selectedDayIdx = parseInt(dayRange.value); // Índice del día de inicio (0-based)
-            const betaValue = parseFloat(betaRange.value);
+        // --- Funció principal d'actualització del gràfic ---
+        function actualitzarGrafic() {
+            const dia_seleccionat_idx = parseInt(rangDia.value); // Índex del dia d'inici (base 0)
+            const valor_beta = parseFloat(rangBeta.value);
 
-            dayValueSpan.textContent = selectedDayIdx;
-            betaValueSpan.textContent = betaValue.toFixed(3); // Mostrar beta con 3 decimales
+            valorDiaSpan.textContent = dia_seleccionat_idx;
+            valorBetaSpan.textContent = valor_beta.toFixed(3); // Mostrar beta amb 3 decimals
 
-            // Obtener los datos proyectados usando la función adaptada
-            const projected_data = estimacion_pandemia_js(betaValue, selectedDayIdx);
+            // Obtenir les dades projectades usant la funció adaptada
+            const dades_projectades = estimacio_pandemia_js(valor_beta, dia_seleccionat_idx);
 
-            // Crear el eje X (días)
-            const x_data = Array.from({length: TOTAL_GRAPH_DAYS}, (_, i) => i);
+            // Crear l'eix X (dies)
+            const x_dades = Array.from({length: TOTAL_DIES_GRAFIC}, (_, i) => i);
 
-            // Determinar el rango máximo del eje Y dinámicamente
-            let maxYValue = Math.max(...I_hist, ...projected_data.I); // Solo los infectados para el rango principal
-            if (llista_casos_hist && llista_casos_hist.length > 0) {
-                 maxYValue = Math.max(maxYValue, ...llista_casos_hist);
-            }
-            if (projected_data.new_cases && projected_data.new_cases.length > 0) {
-                 maxYValue = Math.max(maxYValue, ...projected_data.new_cases);
+            // Determinar el rang màxim de l'eix Y dinàmicament
+            let val_maxim_Y = Math.max(...I_hist, ...dades_projectades.I);
+            val_maxim_Y = val_maxim_Y * 1.1; // Un 10% més per a marge superior
+            if (val_maxim_Y === 0 || isNaN(val_maxim_Y) || !isFinite(val_maxim_Y)) {
+                val_maxim_Y = N_POBLACION * 0.001; // Valor predeterminat si no hi ha dades significatives
             }
 
-            maxYValue = maxYValue * 1.1; // Un 10% más para margen superior
-            if (maxYValue === 0 || isNaN(maxYValue) || !isFinite(maxYValue)) {
-                maxYValue = N_POBLACION * 0.001; // Valor predeterminado si no hay datos significativos, una escala muy pequeña
-            }
-
-
-            // Configuración de los Trazos para Plotly
+            // Configuració dels Traces per a Plotly
             const traces = [
-                // Infectados Reales (del histórico real de tu Python)
+                // Infectats Reals (de l'històric real del teu Python)
                 {
-                    x: x_data,
+                    x: x_dades,
                     y: I_hist,
                     mode: 'lines',
-                    name: 'Infectados Reales',
-                    line: { color: 'red', width: 3, dash: 'solid' }
+                    name: 'Infectats Reals',
+                    line: { color: 'red', width: 3, dash: 'solid' },
+                    showlegend: true // Visible i a la llegenda
                 },
-                // Infectados Proyectados
+                // Infectats Projectats
                 {
-                    x: x_data,
-                    y: projected_data.I,
+                    x: x_dades,
+                    y: dades_projectades.I,
                     mode: 'lines',
-                    name: `Proyección de Infectados ($\\beta = ${betaValue.toFixed(3)}$ desde Día ${selectedDayIdx})`,
-                    line: { color: 'blue', width: 3, dash: 'dash' }
+                    name: `Projecció Infectats (beta = ${valor_beta.toFixed(3)} des del Dia ${dia_seleccionat_idx})`,
+                    line: { color: 'blue', width: 3, dash: 'dash' },
+                    showlegend: true // Visible i a la llegenda
                 },
-                // Nuevos Casos Diarios (Histórico) - Oculto por defecto
+                // Aquestes corbes NO apareixeran a la llegenda ni seran visibles per defecte.
                 {
-                    x: x_data,
+                    x: x_dades,
                     y: llista_casos_hist,
                     mode: 'lines',
-                    name: 'Nuevos Casos Diarios (Histórico)',
+                    name: 'Nous Casos Diaris (Històric)',
                     line: { color: 'orange', width: 2, dash: 'dot' },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 },
-                // Nuevos Casos Proyectados - Oculto por defecto
                 {
-                    x: x_data,
-                    y: projected_data.new_cases,
+                    x: x_dades,
+                    y: dades_projectades.nous_casos,
                     mode: 'lines',
-                    name: `Proy. Nuevos Casos ($\\beta = ${betaValue.toFixed(3)}$ desde Día ${selectedDayIdx})`,
+                    name: `Proj. Nous Casos ($\\beta = ${valor_beta.toFixed(3)}$ des del Dia ${dia_seleccionat_idx})`,
                     line: { color: 'gold', width: 2, dash: 'dashdot' },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 },
-                // Susceptibles (Histórico) - Oculto por defecto
                 {
-                    x: x_data,
+                    x: x_dades,
                     y: S_hist,
                     mode: 'lines',
-                    name: 'Susceptibles (Histórico)',
+                    name: 'Susceptibles (Històric)',
                     line: { color: 'darkblue', width: 1 },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 },
-                // Recuperados (Histórico) - Oculto por defecto
                 {
-                    x: x_data,
+                    x: x_dades,
                     y: R_hist,
                     mode: 'lines',
-                    name: 'Recuperados (Histórico)',
+                    name: 'Recuperats (Històric)',
                     line: { color: 'darkgreen', width: 1 },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 },
-                // Susceptibles Proyectados - Oculto por defecto
                 {
-                    x: x_data,
-                    y: projected_data.S,
+                    x: x_dades,
+                    y: dades_projectades.S,
                     mode: 'lines',
-                    name: `Proy. Susceptibles ($\\beta = ${betaValue.toFixed(3)}$ desde Día ${selectedDayIdx})`,
+                    name: `Proj. Susceptibles ($\\beta = ${valor_beta.toFixed(3)}$ des del Dia ${dia_seleccionat_idx})`,
                     line: { color: 'lightblue', width: 1, dash: 'dash' },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 },
-                // Recuperados Proyectados - Oculto por defecto
                 {
-                    x: x_data,
-                    y: projected_data.R,
+                    x: x_dades,
+                    y: dades_projectades.R,
                     mode: 'lines',
-                    name: `Proy. Recuperados ($\\beta = ${betaValue.toFixed(3)}$ desde Día ${selectedDayIdx})`,
+                    name: `Proj. Recuperats ($\\beta = ${valor_beta.toFixed(3)}$ des del Dia ${dia_seleccionat_idx})`,
                     line: { color: 'lightgreen', width: 1, dash: 'dash' },
-                    visible: 'legendonly'
+                    visible: false,
+                    showlegend: false
                 }
             ];
 
             const layout = {
-                title: `Curvas de Infectados: Histórico Real vs. Proyección desde el Día ${selectedDayIdx}`,
+                title: `Corbes d'Infectats: Històric Real vs. Projecció des del Dia ${dia_seleccionat_idx}`,
                 xaxis: {
-                    title: 'Día',
-                    range: [0, TOTAL_GRAPH_DAYS - 1],
-                    dtick: 50 // Mostrar ticks cada 50 días
+                    title: 'Dia',
+                    range: [0, TOTAL_DIES_GRAFIC - 1],
+                    dtick: 50 // Mostrar ticks cada 50 dies
                 },
                 yaxis: {
-                    title: 'Número de Individuos',
-                    range: [0, maxYValue]
+                    title: 'Nombre d\'individus',
+                    range: [0, val_maxim_Y]
                 },
-                shapes: [ // Línea vertical para el día de inicio de la proyección
+                shapes: [ // Línia vertical per al dia d'inici de la projecció
                     {
                         type: 'line',
-                        x0: selectedDayIdx,
+                        x0: dia_seleccionat_idx,
                         y0: 0,
-                        x1: selectedDayIdx,
-                        y1: maxYValue,
+                        x1: dia_seleccionat_idx,
+                        y1: val_maxim_Y,
                         line: {
                             color: 'grey',
                             width: 2,
@@ -345,17 +334,15 @@
                 }
             };
 
-            Plotly.newPlot(sirGraphDiv, traces, layout);
+            Plotly.newPlot(graficSIRDiv, traces, layout);
         }
 
-        // Event listeners para actualizar el gráfico cuando cualquier deslizador cambia
-        dayRange.addEventListener('input', updateGraph);
-        betaRange.addEventListener('input', updateGraph);
+        // Event listeners per actualitzar el gràfic quan qualsevol lliscador canvia
+        rangDia.addEventListener('input', actualitzarGrafic);
+        rangBeta.addEventListener('input', actualitzarGrafic);
 
-        // Inicializar el gráfico al cargar la página
-        // IMPORTANTE: Asegúrate de pegar los datos de Python ANTES de abrir la página
-        // para que llista_casos_hist, S_hist, etc. no estén vacíos o con datos dummy.
-        updateGraph();
+        // Inicialitzar el gràfic en carregar la pàgina
+        actualitzarGrafic();
     </script>
 </body>
 </html>
