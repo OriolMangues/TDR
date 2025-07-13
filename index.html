@@ -1,33 +1,41 @@
+
 <!DOCTYPE html>
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Predicció COVID-19 Espanya: Funció 'estimació_pandèmia' Ajustable</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Montserrat", sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
             background-color: #f4f4f4;
             color: #333;
+background: #C9D6FF;  /* fallback for old browsers */
+background: -webkit-linear-gradient(to right, #E2E2E2, #C9D6FF);  /* Chrome 10-25, Safari 5.1-6 */
+background: linear-gradient(to right, #E2E2E2, #C9D6FF); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+
+
         }
         h1 {
-            color: #0056b3;
+            color: black;
             margin-bottom: 15px;
             text-align: center;
         }
         h2 {
-            color: #007bff;
+            color: black;
             margin-bottom: 25px;
             text-align: center;
             font-size: 1.2em;
         }
         .controls {
-            margin-bottom: 25px;
             background-color: #fff;
             padding: 25px;
             border-radius: 10px;
@@ -89,8 +97,8 @@
         }
         #sirGraph {
             width: 90%;
-            max-width: 900px;
-            height: 600px;
+            max-width: 1100px;
+            height: 520px;
             background-color: #fff;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
